@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:digimobil_new/utils/colors.dart';
+import 'package:digimobil_new/utils/image_cache_config.dart';
 
 class RobustImageWidget extends StatelessWidget {
   final String imageUrl;
@@ -10,6 +11,7 @@ class RobustImageWidget extends StatelessWidget {
   final Widget? placeholder;
   final Widget? errorWidget;
   final VoidCallback? onImageLoaded;
+  final bool useOptimizedCache;
 
   const RobustImageWidget({
     super.key,
@@ -20,24 +22,51 @@ class RobustImageWidget extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.onImageLoaded,
+    this.useOptimizedCache = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Determine if this is a thumbnail
+    final isThumb = ImageCacheConfig.isThumbnail(imageUrl);
+    
+    // Get cache manager
+    final cacheManager = useOptimizedCache 
+        ? ImageCacheConfig.getCacheManager(imageUrl)
+        : null;
+    
+    // Get optimized cache dimensions
+    final memWidth = useOptimizedCache
+        ? ImageCacheConfig.getMemCacheWidth(imageUrl, maxWidth: width?.toInt())
+        : null;
+    final memHeight = useOptimizedCache
+        ? ImageCacheConfig.getMemCacheHeight(imageUrl, maxHeight: height?.toInt())
+        : null;
+    final diskWidth = useOptimizedCache
+        ? ImageCacheConfig.getDiskCacheWidth(imageUrl, maxWidth: width?.toInt())
+        : null;
+    final diskHeight = useOptimizedCache
+        ? ImageCacheConfig.getDiskCacheHeight(imageUrl, maxHeight: height?.toInt())
+        : null;
+    
     return CachedNetworkImage(
       imageUrl: imageUrl,
       width: width,
       height: height,
       fit: fit,
-      // Disable problematic cache settings
-      memCacheWidth: null,
-      memCacheHeight: null,
-      maxWidthDiskCache: null,
-      maxHeightDiskCache: null,
+      // Optimized cache manager
+      cacheManager: cacheManager,
+      // Optimized memory cache (smaller for thumbnails, full for images)
+      memCacheWidth: memWidth,
+      memCacheHeight: memHeight,
+      // ❌ maxWidthDiskCache ve maxHeightDiskCache kaldırıldı (ImageCacheManager gerektirir)
+      // Normal CacheManager ile bu parametreler kullanılamaz
       // Fast loading settings
       httpHeaders: {
         'Connection': 'keep-alive',
-        'Cache-Control': 'max-age=3600', // 1 hour cache
+        'Cache-Control': isThumb 
+            ? 'max-age=2592000' // 30 days for thumbnails
+            : 'max-age=604800', // 7 days for full images
       },
       placeholder: (context, url) => placeholder ?? Container(
         width: width,

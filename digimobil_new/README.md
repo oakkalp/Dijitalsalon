@@ -1,177 +1,223 @@
-# 📱 Digital Salon Flutter Projesi
+# Digital Salon Mobile App
 
-## 🎯 Proje Özeti
-Digital Salon, düğün etkinliklerini yönetmek için geliştirilmiş Flutter tabanlı mobil uygulama ve PHP backend sistemi.
+<div align="center">
 
-## 📅 Son Güncelleme: 2025-01-27
-## 👤 Geliştirici: Onur Akkalp
-## 🚀 Durum: Aktif Geliştirme
+![Digital Salon Feature](digisalon/dijital_salon_feature.png)
 
----
+**Modern ve kullanıcı dostu etkinlik yönetim uygulaması**
 
-## ✨ ÖZELLİKLER
+[![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev)
+[![Android](https://img.shields.io/badge/Android-5.0+-green.svg)](https://www.android.com)
+[![iOS](https://img.shields.io/badge/iOS-12.0+-lightgrey.svg)](https://www.apple.com/ios)
 
-### 🔐 Yetki Yönetim Sistemi
-- **Roller:** Admin, Moderator, Yetkili Katılımcı, Katılımcı
-- **Yetkiler:** Medya paylaşma, yorum yapma, hikaye paylaşma, kullanıcı engelleme, yetki düzenleme
-- **Real-time Güncelleme:** Yetki değişiklikleri anında UI'da görünür
-
-### 👥 Katılımcı Yönetimi
-- **Modal Sistem:** Kullanıcı bilgilerine dokunma → Yetki düzenleme/Yasaklama
-- **Yasaklama Sistemi:** Yasaklanan kullanıcılar otomatik etkinlikten çıkar
-- **Periyodik Kontrol:** 10 saniye timer ile yasaklanan kullanıcı kontrolü
-
-### 📱 Event Ekranı
-- **4 Tab Yapısı:** Ana Sayfa, Medya, Hikayeler, Katılımcılar
-- **AppBar:** Event adı + sağ üstte profil ikonu
-- **Hikayeler:** Stories bar + tıklanabilir hikaye listesi
-
-### 🌐 Web-Mobil Ortak Sistem
-- **Ortak Yetki Sistemi:** Web ve mobil aynı yetki mantığını kullanır
-- **JSON Yetkiler:** Tüm sistemlerde ortak yetki formatı
-- **API Entegrasyonu:** Flutter ↔ PHP backend entegrasyonu
+</div>
 
 ---
 
-## 🛠️ TEKNOLOJİLER
+## 📱 Ekran Görüntüleri
 
-### **Frontend (Flutter)**
-- Flutter SDK
-- Provider (State Management)
-- HTTP (API Calls)
-- Image Picker
-- File Picker
+<div align="center">
 
-### **Backend (PHP)**
-- PHP 8.2
-- MySQL Database
-- PDO (Database Connection)
-- JSON API Endpoints
+### Ana Ekranlar
 
-### **Database**
-- MySQL
-- `dugun_katilimcilar` tablosu (yetkiler JSON, durum ENUM)
-- `dugun_etkinlikler` tablosu
-- `dugun_medya` tablosu
+![01](digisalon/01.png)
+![02](digisalon/02.png)
+![03](digisalon/03.png)
 
----
+### Etkinlik Özellikleri
 
-## 📁 PROJE YAPISI
+![04](digisalon/04.png)
+![05](digisalon/05.png)
+![06](digisalon/06.png)
 
-```
-digimobil_new/
-├── lib/
-│   ├── screens/
-│   │   ├── event_detail_screen.dart    # Ana event ekranı
-│   │   ├── events_screen.dart           # Etkinlikler listesi
-│   │   └── login_screen.dart            # Giriş ekranı
-│   ├── widgets/
-│   │   ├── permission_grant_modal.dart  # Yetki modal'ı
-│   │   ├── story_viewer_modal.dart     # Hikaye görüntüleme
-│   │   └── instagram_post_card.dart    # Medya kartları
-│   ├── services/
-│   │   └── api_service.dart            # API servisleri
-│   └── models/
-│       └── event.dart                  # Event model
-├── digimobiapi/
-│   ├── grant_permissions.php           # Yetki verme/alma
-│   ├── update_participant.php         # Katılımcı güncelleme
-│   ├── participants.php                # Katılımcı listesi
-│   └── events.php                      # Event listesi
-└── docs/
-    ├── SOHBET_YEDEK.md                 # Sohbet yedek ve durum raporu
-    ├── TODO_LIST.md                    # TODO listesi
-    └── FLUTTER_EKRANLAR.md             # Ekran dokümantasyonu
-```
+### QR Kod ve Davet
+
+![davetqrı](digisalon/davetqrı.png)
+
+### Paylaşım Modalı
+
+![paylasımmodal](digisalon/paylasımmodal.png)
+
+### Kullanıcı Arama
+
+![kullanıcı arama](digisalon/kullanıcı%20arama.png)
+
+</div>
 
 ---
 
-## 🚀 KURULUM VE ÇALIŞTIRMA
+## ✨ Özellikler
 
-### **Gereksinimler**
-- Flutter SDK
-- PHP 8.2+
-- MySQL Database
-- XAMPP (Local Development)
+### 🎯 Temel Özellikler
+- ✅ Modern ve kullanıcı dostu arayüz
+- ✅ Dark Mode desteği
+- ✅ Gerçek zamanlı etkinlik güncellemeleri
+- ✅ QR kod ile etkinlik katılımı
+- ✅ Medya paylaşımı (fotoğraf ve video)
+- ✅ Hikaye (Story) özelliği
+- ✅ Yorum ve beğeni sistemi
+- ✅ Bildirim sistemi
 
-### **Kurulum**
-1. Flutter projesini klonlayın
-2. `flutter pub get` komutunu çalıştırın
-3. MySQL database'i oluşturun
-4. PHP backend'i XAMPP'a kopyalayın
-5. Database bağlantı ayarlarını yapın
+### 📸 Medya Özellikleri
+- ✅ Kamera ile fotoğraf/video çekme
+- ✅ Galeriden medya seçimi
+- ✅ Medya düzenleme (filtreler, metin ekleme)
+- ✅ Thumbnail ve preview desteği
+- ✅ Medya limitleri kontrolü
 
-### **Çalıştırma**
+### 🔐 Güvenlik ve Kimlik Doğrulama
+- ✅ Email/Şifre ile giriş
+- ✅ Google Sign-In entegrasyonu
+- ✅ Apple Sign-In entegrasyonu
+- ✅ Güvenli oturum yönetimi
+- ✅ Otomatik oturum yenileme
+
+### 👥 Sosyal Özellikler
+- ✅ Kullanıcı profilleri
+- ✅ Etkinlik katılımcı listesi
+- ✅ Kullanıcı arama
+- ✅ Bildirim sistemi
+- ✅ Yorum ve beğeni sistemi
+
+---
+
+## 🚀 Kurulum
+
+### Gereksinimler
+- Flutter SDK 3.0 veya üzeri
+- Dart SDK 3.0 veya üzeri
+- Android Studio / Xcode
+- Firebase hesabı
+
+### Adımlar
+
+1. **Projeyi klonlayın**
 ```bash
-# Flutter uygulamasını çalıştır
-flutter run --hot
+git clone https://github.com/yourusername/digimobil_new.git
+cd digimobil_new
+```
 
-# Backend API'leri test et
-# http://localhost/dijitalsalon/digimobiapi/
+2. **Bağımlılıkları yükleyin**
+```bash
+flutter pub get
+```
+
+3. **Firebase yapılandırması**
+   - `google-services.json` dosyasını `android/app/` klasörüne ekleyin
+   - Firebase Console'dan SHA-1 fingerprint'lerini ekleyin
+
+4. **Uygulamayı çalıştırın**
+```bash
+flutter run
 ```
 
 ---
 
-## 📊 PROJE DURUMU
+## 📦 Build
 
-### ✅ Tamamlanan Özellikler
-- [x] Yetki yönetim sistemi
-- [x] Katılımcı yönetimi
-- [x] Event ekranı yeniden tasarımı
-- [x] Web-mobil ortak yetki sistemi
-- [x] Yasaklama sistemi
-- [x] Real-time güncelleme
+### APK Build
+```bash
+flutter build apk --release
+```
 
-### 🔄 Devam Eden Çalışmalar
-- [ ] Test ve doğrulama
-- [ ] UI iyileştirmeleri
-- [ ] Performans optimizasyonu
-
-### ⏳ Planlanan Özellikler
-- [ ] Bildirim sistemi
-- [ ] Etkinlik istatistikleri
-- [ ] Real-time chat
-- [ ] Video streaming
+### App Bundle (Play Store)
+```bash
+flutter build appbundle --release
+```
 
 ---
 
-## 🐛 BİLİNEN SORUNLAR
+## 🛠️ Teknolojiler
 
-### **Çözülen Sorunlar**
-- ✅ TabController length uyumsuzluğu
-- ✅ Duplicate metod hatası
-- ✅ Import eksikliği
-- ✅ RenderBox layout hataları
-- ✅ ScaffoldMessenger dispose hatası
+### Frontend
+- **Flutter** - Cross-platform framework
+- **Dart** - Programlama dili
+- **Provider** - State management
+- **Material Design 3** - UI framework
 
-### **Aktif Sorunlar**
-- 🔄 Hot reload hızı optimize edilecek
-- 🔄 Memory leak kontrolü yapılacak
+### Backend Integration
+- **REST API** - Backend servisleri
+- **Firebase** - Authentication, Cloud Messaging
+- **Session Management** - Güvenli oturum yönetimi
 
----
-
-## 📞 İLETİŞİM VE DESTEK
-
-- **Proje Sahibi:** Onur Akkalp
-- **Teknoloji:** Flutter + PHP + MySQL
-- **Sunucu:** XAMPP (Local Development)
-- **Database:** MySQL (dijitalsalon)
-
----
-
-## 📝 LİSANS
-
-Bu proje özel geliştirme projesidir. Tüm hakları saklıdır.
+### Paketler
+- `mobile_scanner` - QR kod tarama
+- `camera` - Kamera erişimi
+- `image_picker` - Medya seçimi
+- `photo_manager` - Galeri yönetimi
+- `video_player` - Video oynatma
+- `cached_network_image` - Resim önbellekleme
+- `permission_handler` - İzin yönetimi
+- `firebase_auth` - Kimlik doğrulama
+- `firebase_messaging` - Push bildirimleri
 
 ---
 
-## 🎯 SONRAKI ADIMLAR
+## 📁 Proje Yapısı
 
-1. **Test ve Doğrulama** (1-2 gün)
-2. **UI İyileştirmeleri** (1 hafta)
-3. **Yeni Özellikler** (1 ay)
-4. **Production Deployment** (2 ay)
+```
+lib/
+├── main.dart                 # Ana uygulama dosyası
+├── models/                   # Veri modelleri
+├── providers/                # State management
+├── screens/                  # Ekranlar
+│   ├── login_screen.dart
+│   ├── instagram_home_screen.dart
+│   ├── event_detail_screen.dart
+│   └── ...
+├── services/                 # Servisler
+│   ├── api_service.dart
+│   └── firebase_service.dart
+├── utils/                    # Yardımcı sınıflar
+│   ├── colors.dart
+│   ├── theme_colors.dart
+│   └── ...
+└── widgets/                  # Widget'lar
+    ├── camera_modal.dart
+    ├── share_modal.dart
+    └── ...
+```
 
 ---
 
-*Bu README dosyası projenin mevcut durumunu ve gelecek planlarını içerir. Her güncelleme sonrası bu dosya yenilenmelidir.*
+## 🎨 Temalar
+
+Uygulama hem Light hem de Dark mode desteği sunar:
+
+- **Light Mode**: Modern ve temiz görünüm
+- **Dark Mode**: Göz yormayan karanlık tema
+
+Tema renkleri `lib/utils/theme_colors.dart` dosyasında tanımlanmıştır.
+
+---
+
+## 📝 Lisans
+
+Bu proje özel bir projedir ve tüm hakları saklıdır.
+
+---
+
+## 👨‍💻 Geliştirici
+
+**Cag Apps**
+- Email: app@cagapps.app
+- Website: https://cagapps.app
+
+---
+
+## 📞 Destek
+
+Sorularınız veya önerileriniz için:
+- Issue açın: [GitHub Issues](https://github.com/yourusername/digimobil_new/issues)
+- Email gönderin: app@cagapps.app
+
+---
+
+<div align="center">
+
+**⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın! ⭐**
+
+Made with ❤️ using Flutter
+
+</div>
+

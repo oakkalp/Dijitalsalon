@@ -8,12 +8,15 @@ import 'package:digimobil_new/widgets/story_viewer_modal.dart';
 import 'package:digimobil_new/services/api_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:digimobil_new/widgets/robust_image_widget.dart';
+import 'package:digimobil_new/screens/camera_screen_modal.dart';
+import 'package:image_picker/image_picker.dart';
 
 class InstagramStoriesBar extends StatelessWidget {
   final List<Event> events;
   final List<Map<String, dynamic>> stories;
   final Function(Event)? onEventSelected;
   final VoidCallback? onAddStory;
+  final Future<void> Function(XFile file)? onStoryUpload;
 
   const InstagramStoriesBar({
     super.key,
@@ -21,6 +24,7 @@ class InstagramStoriesBar extends StatelessWidget {
     required this.stories,
     this.onEventSelected,
     this.onAddStory,
+    this.onStoryUpload,
   });
 
   @override
@@ -50,8 +54,8 @@ class InstagramStoriesBar extends StatelessWidget {
       child: Column(
         children: [
           SizedBox(
-            width: 65,
-            height: 65,
+            width: 72,
+            height: 72,
             child: Stack(
               children: [
                 Container(
@@ -59,47 +63,63 @@ class InstagramStoriesBar extends StatelessWidget {
                   height: 65,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: user?.profileImage == null
-                        ? Colors.grey.shade300
-                        : null,
+                    color: Colors.grey.shade300,
                   ),
-                  child: user?.profileImage != null
-                      ? ClipOval(
-                          child: RobustImageWidget(
-                            imageUrl: user!.profileImage!,
-                            width: 65,
-                            height: 65,
-                            fit: BoxFit.cover,
-                            placeholder: Container(
-                              width: 65,
-                              height: 65,
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.person, color: Colors.grey, size: 30),
-                            ),
-                            errorWidget: Container(
-                              width: 65,
-                              height: 65,
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.person, color: Colors.grey, size: 30),
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.person, color: Colors.grey, size: 30),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3.0),
+                    child: Container(
+                      width: 66,
+                      height: 66,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.cardBackground,
+                        border: Border.all(color: AppColors.background, width: 3),
+                      ),
+                      child: ClipOval(
+                        child: user?.profileImage != null
+                            ? RobustImageWidget(
+                                imageUrl: user!.profileImage!,
+                                width: 66,
+                                height: 66,
+                                fit: BoxFit.cover,
+                                placeholder: Container(
+                                  width: 66,
+                                  height: 66,
+                                  color: AppColors.surfaceLight,
+                                  child: const Icon(Icons.person, color: AppColors.textSecondary, size: 30),
+                                ),
+                                errorWidget: Container(
+                                  width: 66,
+                                  height: 66,
+                                  color: AppColors.surfaceLight,
+                                  child: const Icon(Icons.person, color: AppColors.textSecondary, size: 30),
+                                ),
+                              )
+                            : Container(
+                                width: 66,
+                                height: 66,
+                                color: AppColors.surfaceLight,
+                                child: const Icon(Icons.person, color: AppColors.textSecondary, size: 30),
+                              ),
+                      ),
+                    ),
+                  ),
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
                   child: Container(
-                    width: 19,
-                    height: 19,
-                    decoration: const BoxDecoration(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: AppColors.primary,
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
                     child: const Icon(
-                      Icons.add_circle,
-                      color: AppColors.primary,
-                      size: 19,
+                      Icons.add,
+                      color: Colors.white,
+                      size: 14,
                     ),
                   ),
                 ),
@@ -108,12 +128,13 @@ class InstagramStoriesBar extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            width: 70,
+            width: 75,
             child: Text(
-              'Hikaye Paylaş',
+              'Hikaye Ekle',
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Colors.black,
+                color: Colors.black87,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -125,6 +146,8 @@ class InstagramStoriesBar extends StatelessWidget {
   }
 
   Widget _buildStoryCircle(BuildContext context, Map<String, dynamic> story) {
+    final bool isViewed = story['is_viewed'] == true;
+    
     return Padding(
       padding: const EdgeInsets.only(right: 20, bottom: 10),
       child: GestureDetector(
@@ -132,70 +155,63 @@ class InstagramStoriesBar extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 65,
+              height: 65,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: story['is_viewed'] == false
-                    ? const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFFE1306C),
-                          Color(0xFFF56040),
-                          Color(0xFFF77737),
-                          Color(0xFFFCAF45),
-                          Color(0xFFFFDC80),
-                        ],
-                      )
+                gradient: !isViewed
+                    ? AppColors.primaryGradient
                     : null,
-                color: story['is_viewed'] == true ? Colors.grey.shade300 : null,
+                color: isViewed ? Colors.grey.shade400 : null,
               ),
               child: Padding(
                 padding: const EdgeInsets.all(3.0),
                 child: Container(
-                  width: 65,
-                  height: 65,
+                  width: 59,
+                  height: 59,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 2),
                     shape: BoxShape.circle,
-                    color: story['user_avatar'] == null
-                        ? Colors.grey.shade300
-                        : null,
+                    color: Colors.white,
                   ),
-                  child: story['user_avatar'] != null
-                      ? ClipOval(
-                          child: RobustImageWidget(
+                  child: ClipOval(
+                    child: story['user_avatar'] != null
+                        ? RobustImageWidget(
                             imageUrl: story['user_avatar'],
-                            width: 65,
-                            height: 65,
+                            width: 66,
+                            height: 66,
                             fit: BoxFit.cover,
                             placeholder: Container(
-                              width: 65,
-                              height: 65,
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.person, color: Colors.grey, size: 25),
+                              width: 66,
+                              height: 66,
+                              color: AppColors.surfaceLight,
+                              child: const Icon(Icons.person, color: AppColors.textSecondary, size: 28),
                             ),
                             errorWidget: Container(
-                              width: 65,
-                              height: 65,
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.person, color: Colors.grey, size: 25),
+                              width: 66,
+                              height: 66,
+                              color: AppColors.surfaceLight,
+                              child: const Icon(Icons.person, color: AppColors.textSecondary, size: 28),
                             ),
+                          )
+                        : Container(
+                            width: 66,
+                            height: 66,
+                            color: AppColors.surfaceLight,
+                            child: const Icon(Icons.person, color: AppColors.textSecondary, size: 28),
                           ),
-                        )
-                      : const Icon(Icons.person, color: Colors.grey, size: 25),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             SizedBox(
-              width: 70,
+              width: 75,
               child: Text(
                 story['user_name'] ?? 'Kullanıcı',
+                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.black,
+                style: TextStyle(
+                  color: isViewed ? Colors.grey.shade600 : Colors.black87,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -253,6 +269,12 @@ class InstagramStoriesBar extends StatelessWidget {
           backgroundColor: AppColors.error,
         ),
       );
+    }
+  }
+
+  void _handleAddStoryTap(BuildContext context) {
+    if (onAddStory != null) {
+      onAddStory!();
     }
   }
 }

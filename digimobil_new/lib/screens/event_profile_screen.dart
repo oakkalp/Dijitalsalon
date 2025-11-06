@@ -87,14 +87,14 @@ class _EventProfileScreenState extends State<EventProfileScreen>
         }
       }
       
-      // Load media
-      final mediaData = await _apiService.getMedia(widget.event.id, page: 1, limit: 50);
-      setState(() {
-        _media = (mediaData['media'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-      });
+      // ✅ Paralel olarak medya ve hikayeleri yükle
+      final mediaFuture = _apiService.getMedia(widget.event.id, page: 1, limit: 50);
+      final storiesFuture = _apiService.getStories(widget.event.id);
 
-      // Load stories (only active ones - less than 7 days old)
-      final storiesData = await _apiService.getStories(widget.event.id);
+      final results = await Future.wait([mediaFuture, storiesFuture]);
+      
+      final mediaData = results[0] as Map<String, dynamic>;
+      final storiesData = results[1] as List<dynamic>;
       print('Raw stories data: ${storiesData.length} stories');
       
       final now = DateTime.now();
@@ -111,20 +111,26 @@ class _EventProfileScreenState extends State<EventProfileScreen>
       
       print('Active stories after filter: ${activeStories.length}');
       
-      setState(() {
-        _stories = activeStories;
-      });
+      if (mounted) {
+        setState(() {
+          _media = (mediaData['media'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+          _stories = activeStories.cast<Map<String, dynamic>>();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Veri yüklenirken hata: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error loading event data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Veri yüklenirken hata: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
   
@@ -220,13 +226,19 @@ class _EventProfileScreenState extends State<EventProfileScreen>
             
             // Tab Content
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildMediaGrid(),
-                  _buildStoriesGrid(),
-                ],
-              ),
+              child: _isLoading 
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE1306C)),
+                    ),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildMediaGrid(),
+                      _buildStoriesGrid(),
+                    ],
+                  ),
             ),
           ],
         ),
@@ -254,7 +266,7 @@ class _EventProfileScreenState extends State<EventProfileScreen>
               child: CachedNetworkImage(
                 imageUrl: widget.event.coverPhoto!.startsWith('http') 
                     ? widget.event.coverPhoto! 
-                    : 'http://192.168.1.137/dijitalsalon/${widget.event.coverPhoto!}',
+                    : 'https://dijitalsalon.cagapps.app/${widget.event.coverPhoto!}',
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: Colors.grey[200],
@@ -343,13 +355,6 @@ class _EventProfileScreenState extends State<EventProfileScreen>
   }
 
   Widget _buildMediaGrid() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFE1306C),
-        ),
-      );
-    }
 
     if (_media.isEmpty) {
       return Center(
@@ -390,7 +395,7 @@ class _EventProfileScreenState extends State<EventProfileScreen>
   }
 
   Widget _buildMediaItem(Map<String, dynamic> media) {
-    final mediaType = media['type'] ?? '';
+    final mediaType = media['tur'] ?? media['type'] ?? '';
     final isVideo = mediaType == 'video';
     final imageUrl = media['url'] ?? media['media_url'];
     final thumbnailUrl = media['thumbnail'];
@@ -416,20 +421,16 @@ class _EventProfileScreenState extends State<EventProfileScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Use preview for grid (fast loading), fallback to thumbnail, then original
-            if (previewUrl != null)
+            // Use original image for grid (preview files are missing)
+            if (imageUrl != null)
               RobustImageWidget(
-                imageUrl: previewUrl,
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
+                onImageLoaded: () => print('Event Profile - Media URL: $imageUrl'),
               )
             else if (isVideo && thumbnailUrl != null)
               RobustImageWidget(
                 imageUrl: thumbnailUrl,
-                fit: BoxFit.cover,
-              )
-            else if (imageUrl != null)
-              RobustImageWidget(
-                imageUrl: imageUrl,
                 fit: BoxFit.cover,
               ),
             if (isVideo)
@@ -447,13 +448,6 @@ class _EventProfileScreenState extends State<EventProfileScreen>
   }
 
   Widget _buildStoriesGrid() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFE1306C),
-        ),
-      );
-    }
 
     if (_stories.isEmpty) {
       return Center(
@@ -502,7 +496,7 @@ class _EventProfileScreenState extends State<EventProfileScreen>
   }
 
   Widget _buildStoryItem(Map<String, dynamic> story) {
-    final isVideo = (story['media_type'] ?? '') == 'video' || (story['type'] ?? '') == 'video';
+    final isVideo = (story['tur'] ?? story['media_type'] ?? '') == 'video';
     final imageUrl = story['url'] ?? story['media_url'];
 
     return GestureDetector(

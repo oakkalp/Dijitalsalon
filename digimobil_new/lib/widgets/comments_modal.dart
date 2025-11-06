@@ -3,6 +3,7 @@ import 'package:digimobil_new/utils/colors.dart';
 import 'package:digimobil_new/services/api_service.dart';
 import 'package:digimobil_new/models/user.dart';
 import 'package:digimobil_new/models/event.dart';
+import 'package:digimobil_new/widgets/error_modal.dart';
 
 class CommentsModal extends StatefulWidget {
   final int mediaId;
@@ -130,11 +131,24 @@ class _CommentsModalState extends State<CommentsModal> {
     } catch (e) {
       print('Error adding comment: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Yorum eklenirken hata: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        String errorMessage = e.toString();
+        String title = 'Hata';
+        IconData icon = Icons.error_outline;
+        
+        if (errorMessage.contains('yetkiniz bulunmamaktadır') || 
+            errorMessage.contains('yetki')) {
+          title = 'Erişim Yetkisi Yok';
+          icon = Icons.lock_outline;
+          errorMessage = 'Bu etkinlikte yorum yapma yetkiniz bulunmamaktadır.';
+        } else {
+          errorMessage = errorMessage.replaceFirst('Exception: ', '');
+        }
+        
+        ErrorModal.show(
+          context,
+          title: title,
+          message: errorMessage,
+          icon: icon,
         );
       }
     } finally {
@@ -251,6 +265,9 @@ class _CommentsModalState extends State<CommentsModal> {
                 setState(() {
                   _localComments.removeWhere((c) => c['id'] == comment['id']);
                 });
+                
+                // ✅ Parent widget'a yorum silindiğini bildir
+                widget.onAddComment(''); // Boş string ile yorum silindiğini bildir
                 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -418,44 +435,48 @@ class _CommentsModalState extends State<CommentsModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Text(
-                  'Yorumlar',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: AppColors.border.withOpacity(0.3)),
                   ),
                 ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Yorumlar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Comments List
-          Expanded(
-            child: _localLoading
+              // Comments List
+              Expanded(
+                child: _localLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
                   )
@@ -470,6 +491,7 @@ class _CommentsModalState extends State<CommentsModal> {
                         ),
                       )
                     : ListView.builder(
+                        controller: scrollController,
                         padding: const EdgeInsets.all(16),
                         itemCount: _localComments.length,
                         itemBuilder: (context, index) {
@@ -581,25 +603,16 @@ class _CommentsModalState extends State<CommentsModal> {
                                             Expanded(
                                               child: TextField(
                                                 controller: _replyController,
-                                                decoration: const InputDecoration(
+                                                decoration: InputDecoration(
                                                   hintText: 'Yanıt yazın...',
-                                                  hintStyle: TextStyle(color: AppColors.textSecondary),
                                                   border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.all(Radius.circular(15)),
-                                                    borderSide: BorderSide(color: AppColors.border),
+                                                    borderRadius: BorderRadius.circular(12),
                                                   ),
-                                                  enabledBorder: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.all(Radius.circular(15)),
-                                                    borderSide: BorderSide(color: AppColors.border),
-                                                  ),
-                                                  focusedBorder: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.all(Radius.circular(15)),
-                                                    borderSide: BorderSide(color: AppColors.primary),
-                                                  ),
-                                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                  filled: true,
+                                                  fillColor: AppColors.surface,
                                                 ),
-                                                style: const TextStyle(color: Colors.black, fontSize: 12),
-                                                maxLines: null,
+                                                maxLines: 3,
+                                                minLines: 1,
                                                 textInputAction: TextInputAction.send,
                                                 onSubmitted: (_) => _addReply(comment['id']),
                                               ),
@@ -653,63 +666,65 @@ class _CommentsModalState extends State<CommentsModal> {
                           );
                         },
                       ),
-          ),
-
-          // Comment Input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: AppColors.border.withOpacity(0.3)),
               ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: 'Yorum yazın...',
-                      hintStyle: TextStyle(color: AppColors.textSecondary),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide(color: AppColors.border),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                        borderSide: BorderSide(color: AppColors.primary),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+              // Comment Input - ✅ Keyboard-aware bottom padding
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(
+                      top: BorderSide(color: AppColors.border.withOpacity(0.3)),
                     ),
-                    style: const TextStyle(color: Colors.black),
-                    maxLines: null,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _addComment(),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _commentController,
+                            decoration: InputDecoration(
+                              hintText: 'Yorum yazın...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.surface,
+                            ),
+                            maxLines: 4,
+                            minLines: 1,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _addComment(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _isAddingComment ? null : _addComment,
+                          icon: _isAddingComment
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : const Icon(Icons.send, color: AppColors.primary),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _isAddingComment ? null : _addComment,
-                  icon: _isAddingComment
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : const Icon(Icons.send, color: AppColors.primary),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

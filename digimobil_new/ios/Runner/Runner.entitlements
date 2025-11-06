@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sign In with Apple Capability -->
+	<!-- ✅ Apple Developer Account aldığınızda bu capability otomatik olarak aktif olacak -->
+	<!-- Xcode'da "Signing & Capabilities" sekmesinden "Sign In with Apple" eklendiğinde -->
+	<!-- Bu dosya otomatik olarak güncellenecek -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	
+	<!-- Background Modes (zaten var olabilir) -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>
+

@@ -3,6 +3,7 @@ import 'package:digimobil_new/models/event.dart';
 import 'package:digimobil_new/utils/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:digimobil_new/widgets/comments_modal.dart';
+import 'package:digimobil_new/widgets/media_viewer_modal.dart';
 import 'package:digimobil_new/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -12,6 +13,7 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:digimobil_new/services/api_service.dart';
 import 'package:digimobil_new/widgets/robust_image_widget.dart';
+import 'package:digimobil_new/widgets/aspect_ratio_image.dart';
 import 'package:flutter/cupertino.dart';
 
 class InstagramPostCard extends StatefulWidget {
@@ -20,6 +22,7 @@ class InstagramPostCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback? onMediaDeleted;
   final VoidCallback? onCommentCountChanged; // Add callback for comment count changes
+  final List<Map<String, dynamic>>? allMediaList; // ✅ Tüm medya listesi (tam ekran görüntüleyici için)
 
   const InstagramPostCard({
     super.key,
@@ -28,6 +31,7 @@ class InstagramPostCard extends StatefulWidget {
     required this.onTap,
     this.onMediaDeleted,
     this.onCommentCountChanged,
+    this.allMediaList, // ✅ Tüm medya listesi
   });
 
   @override
@@ -180,6 +184,9 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
     print('Delete Media - Post Data: ${widget.post}');
     print('Delete Media - Media ID: $mediaId');
 
+    // ✅ ScaffoldMessenger reference'ı kaydet
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -199,8 +206,9 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                 final result = await _apiService.deleteMedia(mediaId);
                 
                 if (result['success'] == true) {
+                  // ✅ mounted kontrolü ile güvenli ScaffoldMessenger kullanımı
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
                         content: Text('Medya başarıyla silindi'),
                         backgroundColor: AppColors.success,
@@ -215,8 +223,9 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                 }
               } catch (e) {
                 print('Delete Media - Error: $e');
+                // ✅ mounted kontrolü ile güvenli ScaffoldMessenger kullanımı
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('Medya silinirken hata: $e'),
                       backgroundColor: AppColors.error,
@@ -384,6 +393,9 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
     final imageUrl = widget.post?['url'] ?? widget.post?['media_url'] ?? widget.event.coverPhoto;
     final isVideo = widget.post?['media_type'] == 'video' || widget.post?['type'] == 'video';
     
+    // ✅ Video için thumbnail URL'sini al
+    final thumbnailUrl = widget.post?['thumbnail'] ?? widget.post?['preview'];
+    
     // Check if URL is a video file
     final isVideoFile = imageUrl != null && (imageUrl.toLowerCase().endsWith('.mp4') || 
                                             imageUrl.toLowerCase().endsWith('.mov') || 
@@ -391,18 +403,48 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                                             imageUrl.toLowerCase().endsWith('.mkv'));
     
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: () {
+        // ✅ Medya tam ekran görüntüleyici aç
+        if (widget.post != null) {
+          // ✅ Tüm medya listesi varsa onu kullan, yoksa sadece bu post'u göster
+          final mediaList = widget.allMediaList ?? [widget.post!];
+          final index = mediaList.indexWhere((m) => m['id'] == widget.post!['id']);
+          final initialIndex = index != -1 ? index : 0;
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MediaViewerModal(
+                mediaList: mediaList,
+                initialIndex: initialIndex,
+                onMediaUpdated: () {
+                  // ✅ Real-time güncelleme için parent widget'a bildir
+                  widget.onMediaDeleted?.call();
+                  widget.onCommentCountChanged?.call();
+                },
+              ),
+            ),
+          ).then((_) {
+            // ✅ Modal kapandığında refresh yap
+            widget.onMediaDeleted?.call();
+          });
+        } else {
+          widget.onTap();
+        }
+      },
       child: Stack(
         alignment: Alignment.center,
         children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.35,
-            width: double.infinity,
-            child: imageUrl != null && !isVideoFile
-                ? RobustImageWidget(
-                    imageUrl: imageUrl,
-                    width: null, // Let CachedNetworkImage handle sizing
-                    height: null, // Let CachedNetworkImage handle sizing
+          // ✅ Dinamik aspect ratio ile görüntü göster (portrait fotoğraflar kesilmez)
+          isVideoFile && thumbnailUrl != null
+              // ✅ Video için thumbnail göster (cover kullan - video thumbnail'lar genelde kare)
+              ? SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.35,
+                  width: double.infinity,
+                  child: RobustImageWidget(
+                    imageUrl: thumbnailUrl,
+                    width: null,
+                    height: null,
                     fit: BoxFit.cover,
                     placeholder: Container(
                       color: AppColors.primary.withOpacity(0.1),
@@ -418,13 +460,13 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(
-                            Icons.error_outline,
+                            Icons.videocam,
                             color: AppColors.primary,
                             size: 50,
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Yüklenemedi',
+                            'Video Thumbnail Yüklenemedi',
                             style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 12,
@@ -433,27 +475,70 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                         ],
                       ),
                     ),
-                  )
-                : isVideoFile
-                    ? PostVideoPlayer(url: imageUrl)
-                    : Container(
+                  ),
+                )
+              : imageUrl != null && !isVideoFile
+                  // ✅ Fotoğraf için dinamik aspect ratio kullan (portrait fotoğraflar tamamen görünür)
+                  ? AspectRatioImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain, // ✅ contain kullan - kesilme yok
+                      maxHeight: MediaQuery.of(context).size.height * 0.6, // ✅ Maksimum yükseklik
+                      maxWidth: MediaQuery.of(context).size.width, // ✅ Maksimum genişlik
+                      backgroundColor: AppColors.primary.withOpacity(0.05), // ✅ Arka plan rengi
+                      placeholder: Container(
                         color: AppColors.primary.withOpacity(0.1),
-                        child: Center(
-                          child: Icon(
-                            isVideo ? Icons.videocam : Icons.image,
+                        child: const Center(
+                          child: CircularProgressIndicator(
                             color: AppColors.primary,
-                            size: 50,
                           ),
                         ),
                       ),
-          ),
+                      errorWidget: Container(
+                        color: AppColors.primary.withOpacity(0.1),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: AppColors.primary,
+                              size: 50,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Yüklenemedi',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: MediaQuery.of(context).size.height * 0.35,
+                      width: double.infinity,
+                      color: AppColors.primary.withOpacity(0.1),
+                      child: Center(
+                        child: Icon(
+                          isVideo ? Icons.videocam : Icons.image,
+                          color: AppColors.primary,
+                          size: 50,
+                        ),
+                      ),
+                    ),
           // Video play icon overlay
-          if (isVideo)
-            const Center(
-              child: Icon(
-                Icons.play_circle_filled,
+          if (isVideo || isVideoFile)
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.6),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: const Icon(
+                Icons.play_arrow,
                 color: Colors.white,
-                size: 60,
+                size: 48,
               ),
             ),
         ],
@@ -468,7 +553,14 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
         Row(
           children: [
             GestureDetector(
-              onTap: () {
+              onTap: () async {
+                if (widget.post == null) return;
+                
+                final mediaId = widget.post!['id'];
+                final previousLikeState = _isLiked;
+                final previousLikesCount = _likesCount;
+                
+                // Optimistic update
                 setState(() {
                   _isLiked = !_isLiked;
                   if (_isLiked) {
@@ -477,7 +569,47 @@ class _InstagramPostCardState extends State<InstagramPostCard> {
                     _likesCount--;
                   }
                 });
-                // TODO: Call API to like/unlike
+                
+                try {
+                  // Call API to like/unlike
+                  final result = await _apiService.toggleLike(mediaId, previousLikeState);
+                  
+                  // ✅ API'den gelen güncel beğeni sayısını kullan
+                  if (result['likes_count'] != null) {
+                    setState(() {
+                      _likesCount = result['likes_count'] as int;
+                      _isLiked = result['is_liked'] as bool? ?? _isLiked;
+                    });
+                    
+                    // ✅ Local post data'yı güncelle
+                    if (widget.post != null) {
+                      widget.post!['likes'] = _likesCount;
+                      widget.post!['is_liked'] = _isLiked;
+                    }
+                  }
+                  
+                  // ✅ Force refresh media list to persist changes
+                  if (widget.onMediaDeleted != null) {
+                    widget.onMediaDeleted?.call();
+                  }
+                } catch (e) {
+                  print('Like error: $e');
+                  // Rollback on error
+                  setState(() {
+                    _isLiked = previousLikeState;
+                    _likesCount = previousLikesCount;
+                  });
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Beğeni işlemi başarısız: $e'),
+                        backgroundColor: AppColors.error,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
               },
               child: Icon(
                 _isLiked ? Icons.favorite : Icons.favorite_border,
@@ -763,53 +895,36 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
         throw Exception('Invalid URL format');
       }
       
-      // Video dosyasını local olarak indir
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'post_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final localFile = File('${tempDir.path}/$fileName');
+      // ✅ Direkt URL'den streaming yap (indirme yok, daha hızlı başlatma)
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(cleanUrl),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: true,
+          allowBackgroundPlayback: false,
+        ),
+      );
       
-      print('Downloading post video to: ${localFile.path}');
+      // Event listener ekle
+      _controller!.addListener(_videoListener);
       
-      // Video dosyasını indir (retry mekanizması ile)
-      final response = await _downloadWithRetry(cleanUrl, maxRetries: 3);
-      if (response.statusCode == 200) {
-        await localFile.writeAsBytes(response.bodyBytes);
+      // Initialize
+      await _controller!.initialize();
+      
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
         
-        print('Post video downloaded successfully: ${localFile.path}');
+        // Otomatik oynatma başlat, sonra durdur
+        _controller!.play();
+        _controller!.setLooping(true);
         
-        // Local dosyayı oynat
-        _controller = VideoPlayerController.file(
-          localFile,
-          videoPlayerOptions: VideoPlayerOptions(
-            mixWithOthers: true,
-            allowBackgroundPlayback: false,
-          ),
-        );
-        
-        // Event listener ekle
-        _controller!.addListener(_videoListener);
-        
-        // Initialize
-        await _controller!.initialize();
-        
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-          
-          // Otomatik oynatma başlat, sonra durdur
-          _controller!.play();
-          _controller!.setLooping(true);
-          
-          // 3 saniye sonra durdur
-          Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && _controller != null) {
-              _controller!.pause();
-            }
-          });
-        }
-      } else {
-        throw Exception('Failed to download post video: ${response.statusCode}');
+        // 3 saniye sonra durdur
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted && _controller != null) {
+            _controller!.pause();
+          }
+        });
       }
     } catch (e) {
       print('Post video initialization error: $e');

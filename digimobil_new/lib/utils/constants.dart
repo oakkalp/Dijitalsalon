@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://192.168.1.137/dijitalsalon/digimobiapi';
+  static const String baseUrl = 'https://dijitalsalon.cagapps.app/digimobiapi';
   
   // API Endpoints
   static const String loginEndpoint = '/login.php';
@@ -12,6 +12,7 @@ class AppConstants {
   static const String userEmailKey = 'user_email';
   static const String userNameKey = 'user_name';
   static const String userRoleKey = 'user_role';
+  static const String userProfileImageKey = 'user_profile_image';
   static const String sessionKeyKey = 'session_key';
   
   // UI Constants

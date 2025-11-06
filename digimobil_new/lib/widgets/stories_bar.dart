@@ -3,6 +3,7 @@ import 'package:digimobil_new/utils/colors.dart';
 import 'package:digimobil_new/utils/constants.dart';
 import 'package:digimobil_new/widgets/story_viewer_modal.dart';
 import 'package:digimobil_new/models/user.dart';
+import 'package:digimobil_new/models/event.dart';
 
 class StoriesBar extends StatelessWidget {
   final List<Map<String, dynamic>> stories;
@@ -11,11 +12,13 @@ class StoriesBar extends StatelessWidget {
   final VoidCallback? onStoryDeleted;
   final int eventId;
   final User? currentUser;
+  final Event event;
 
   const StoriesBar({
     super.key,
     required this.stories,
     required this.eventId,
+    required this.event,
     this.onAddStory,
     this.onAddStoryFromGallery,
     this.onStoryDeleted,
@@ -65,12 +68,9 @@ class StoriesBar extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => StoryViewerModal(
-                        userId: story['user_id'],
-                        eventId: eventId,
-                        userName: story['user_name'] ?? 'Kullanıcı',
-                        userAvatar: story['user_avatar'],
-                        currentUser: currentUser,
-                        onStoryDeleted: onStoryDeleted,
+                        stories: stories,
+                        initialIndex: stories.indexOf(story),
+                        event: event,
                       ),
                     ),
                   );

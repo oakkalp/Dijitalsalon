@@ -122,35 +122,40 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           Expanded(
             flex: 1,
             child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.white,
-                    size: 50,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'QR kodu kameraya doğru tutun',
-                    style: TextStyle(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.qr_code_scanner,
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      size: 48,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Etkinlik QR kodunu tarayarak otomatik olarak katılabilirsiniz',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
+                    const SizedBox(height: 12),
+                    const Text(
+                      'QR kodu kameraya doğru tutun',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Etkinlik QR kodunu tarayarak otomatik olarak katılabilirsiniz',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

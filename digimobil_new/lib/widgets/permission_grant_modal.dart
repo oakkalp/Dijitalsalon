@@ -31,6 +31,7 @@ class _PermissionGrantModalState extends State<PermissionGrantModal> {
     'yorum_yapabilir',
     'hikaye_paylasabilir',
     'yetki_duzenleyebilir', // ✅ Yeni yetki eklendi
+    'bildirim_gonderebilir', // ✅ Manuel bildirim gönderme yetkisi
     // 'profil_degistirebilir', // Kaldırıldı - düğün kapak fotoğrafı değiştirme yetkisi
   ];
 
@@ -42,6 +43,7 @@ class _PermissionGrantModalState extends State<PermissionGrantModal> {
     'yorum_yapabilir': 'Yorum Yapabilir',
     'hikaye_paylasabilir': 'Hikaye Paylaşabilir',
     'yetki_duzenleyebilir': 'Yetki Düzenleyebilir', // ✅ Yeni yetki eklendi
+    'bildirim_gonderebilir': 'Bildirim Gönderebilir', // ✅ Manuel bildirim gönderme
     // 'profil_degistirebilir': 'Profil Değiştirebilir', // Kaldırıldı
   };
 
@@ -53,6 +55,7 @@ class _PermissionGrantModalState extends State<PermissionGrantModal> {
     'yorum_yapabilir': 'Yorum yapma yetkisi',
     'hikaye_paylasabilir': 'Hikaye paylaşma yetkisi',
     'yetki_duzenleyebilir': 'Diğer kullanıcıların yetkilerini düzenleme', // ✅ Yeni yetki eklendi
+    'bildirim_gonderebilir': 'Tüm katılımcılara manuel bildirim gönderme', // ✅ Manuel bildirim
     // 'profil_degistirebilir': 'Profil bilgilerini değiştirme', // Kaldırıldı
   };
 

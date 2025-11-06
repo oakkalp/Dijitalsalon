@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:digimobil_new/providers/event_provider.dart';
 import 'package:digimobil_new/utils/colors.dart';
+import 'package:digimobil_new/utils/theme_colors.dart';
 import 'package:digimobil_new/utils/constants.dart';
 import 'package:digimobil_new/screens/qr_scanner_screen.dart';
 
@@ -27,18 +28,23 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final secondaryTextColor = isDark ? Colors.grey[300]! : Colors.grey[600]!;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Etkinliğe Katıl',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: textColor,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: AppColors.surface,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppConstants.defaultPadding),
@@ -53,7 +59,7 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                 borderRadius: BorderRadius.circular(AppConstants.defaultRadius),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: ThemeColors.primary(context).withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -61,18 +67,18 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
               ),
               child: Column(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.qr_code_scanner,
                     size: 80,
-                    color: AppColors.textPrimary,
+                    color: textColor,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Etkinliğe Katıl',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -80,7 +86,7 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                     'QR kodu tarayın veya etkinlik kodunu girin',
                     style: TextStyle(
                       fontSize: 16,
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -95,9 +101,9 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
               width: double.infinity,
               height: 120,
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Theme.of(context).cardTheme.color ?? ThemeColors.surface(context),
                 borderRadius: BorderRadius.circular(AppConstants.defaultRadius),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: ThemeColors.border(context)),
               ),
               child: ElevatedButton(
                 onPressed: _scanQRCode,
@@ -111,18 +117,18 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.qr_code_scanner,
                       size: 40,
-                      color: AppColors.primary,
+                      color: ThemeColors.primary(context),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'QR Kodu Tara',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -130,7 +136,7 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                       'Etkinlik QR kodunu tarayın',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: secondaryTextColor,
                       ),
                     ),
                   ],
@@ -145,7 +151,7 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
               children: [
                 Expanded(
                   child: Divider(
-                    color: AppColors.border,
+                    color: ThemeColors.border(context),
                     thickness: 1,
                   ),
                 ),
@@ -156,13 +162,13 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textTertiary,
+                      color: secondaryTextColor,
                     ),
                   ),
                 ),
                 Expanded(
                   child: Divider(
-                    color: AppColors.border,
+                    color: ThemeColors.border(context),
                     thickness: 1,
                   ),
                 ),
@@ -174,22 +180,22 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
             // Manual Event ID Input
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Theme.of(context).cardTheme.color ?? ThemeColors.surface(context),
                 borderRadius: BorderRadius.circular(AppConstants.defaultRadius),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: ThemeColors.border(context)),
               ),
               child: TextFormField(
                 controller: _eventIdController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
                   labelText: 'Etkinlik Kodu',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
-                  prefixIcon: Icon(Icons.event, color: AppColors.textSecondary),
+                  labelStyle: TextStyle(color: secondaryTextColor),
+                  prefixIcon: Icon(Icons.event, color: secondaryTextColor),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(AppConstants.defaultPadding),
+                  contentPadding: const EdgeInsets.all(AppConstants.defaultPadding),
                   hintText: 'Örnek: 20 (Etkinlikler sayfasındaki ID)',
-                  hintStyle: TextStyle(color: AppColors.textTertiary),
+                  hintStyle: TextStyle(color: secondaryTextColor?.withOpacity(0.7) ?? Colors.grey),
                 ),
               ),
             ),
@@ -221,20 +227,20 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                          color: AppColors.textPrimary,
+                          color: textColor,
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Etkinliğe Katıl',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: textColor,
                         ),
                       ),
               ),
@@ -246,23 +252,23 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
             Container(
               padding: const EdgeInsets.all(AppConstants.defaultPadding),
               decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.1),
+                color: ThemeColors.info.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppConstants.defaultRadius),
-                border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                border: Border.all(color: ThemeColors.info.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
                   const Icon(
                     Icons.info_outline,
-                    color: AppColors.info,
+                    color: ThemeColors.info,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child:                     Text(
+                    child: Text(
                       'Etkinlik kodunu moderatörden alabilir veya etkinlik QR kodunu tarayabilirsiniz.\n\nMevcut etkinlik ID: 20',
                       style: const TextStyle(
-                        color: AppColors.info,
+                        color: ThemeColors.info,
                         fontSize: 14,
                       ),
                     ),
@@ -282,8 +288,9 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
       MaterialPageRoute(
         builder: (context) => QRScannerScreen(
           onQRCodeScanned: (qrCode) {
-            // Refresh events after successful QR scan
-            Provider.of<EventProvider>(context, listen: false).loadEvents();
+            // ✅ Refresh events after successful QR scan (cache bypass ile - yeni event hemen görünsün)
+            Provider.of<EventProvider>(context, listen: false).loadEvents(bypassCache: true);
+            // ✅ Ana sayfaya dön (event detay sayfası açılmayacak)
             widget.onEventJoined?.call();
           },
         ),
@@ -328,10 +335,11 @@ class _JoinEventScreenState extends State<JoinEventScreen> {
         // Clear the input field
         _eventIdController.clear();
         
-        // Navigate back to events screen after a short delay
+        // ✅ Ana sayfaya dön (event detay sayfası açılmayacak)
+        // ✅ Event kartı real-time görünecek
         Future.delayed(const Duration(milliseconds: 1500), () {
           if (mounted) {
-            // Call callback to switch to events tab
+            // Call callback to switch to events tab (ana sayfaya dön)
             widget.onEventJoined?.call();
           }
         });

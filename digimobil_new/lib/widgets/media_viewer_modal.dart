@@ -5,15 +5,23 @@ import 'package:digimobil_new/widgets/comments_modal.dart';
 import 'package:digimobil_new/services/api_service.dart';
 import 'package:digimobil_new/utils/colors.dart';
 import 'package:video_player/video_player.dart';
+import 'package:gal/gal.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:typed_data';
 
 class MediaViewerModal extends StatefulWidget {
   final List<Map<String, dynamic>> mediaList;
   final int initialIndex;
+  final VoidCallback? onMediaUpdated; // ✅ Callback for media updates
 
   const MediaViewerModal({
     super.key,
     required this.mediaList,
     required this.initialIndex,
+    this.onMediaUpdated,
   });
 
   @override
@@ -50,7 +58,7 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
       final videoUrl = media['url'] ?? media['media_url'];
       if (videoUrl != null) {
         _videoController = VideoPlayerController.networkUrl(
-          Uri.parse(videoUrl.startsWith('http') ? videoUrl : 'http://192.168.1.137/dijitalsalon/$videoUrl'),
+          Uri.parse(videoUrl.startsWith('http') ? videoUrl : 'https://dijitalsalon.cagapps.app/$videoUrl'),
         );
         _videoController!.initialize().then((_) {
           setState(() {});
@@ -89,27 +97,53 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
   Future<void> _toggleLike() async {
     if (_currentMedia == null) return;
     
+    final mediaId = _currentMedia!['id'];
+    // ✅ Değişkenleri try bloğunun dışında tanımla
+    final previousLikeState = _currentMedia!['is_liked'] ?? false;
+    final previousLikesCount = _currentMedia!['likes'] ?? 0;
+    
     try {
-      final mediaId = _currentMedia!['id'];
-      final isLiked = _currentMedia!['is_liked'] ?? false;
-      
-      if (isLiked) {
-        await _apiService.unlikeMedia(mediaId);
-      } else {
-        await _apiService.likeMedia(mediaId);
-      }
-      
+      // Optimistic update
       setState(() {
-        _currentMedia!['is_liked'] = !isLiked;
-        _currentMedia!['likes'] = (_currentMedia!['likes'] ?? 0) + (isLiked ? -1 : 1);
+        _currentMedia!['is_liked'] = !previousLikeState;
+        _currentMedia!['likes'] = previousLikesCount + (previousLikeState ? -1 : 1);
       });
+      
+      // ✅ Use toggleLike API for consistency
+      final result = await _apiService.toggleLike(mediaId, previousLikeState);
+      
+      // ✅ API'den gelen güncel beğeni sayısını kullan
+      if (result['likes_count'] != null) {
+        setState(() {
+          _currentMedia!['likes'] = result['likes_count'] as int;
+          _currentMedia!['is_liked'] = result['is_liked'] as bool? ?? _currentMedia!['is_liked'];
+        });
+        
+        // ✅ Widget'ın mediaList'ini de güncelle
+        final mediaIndex = widget.mediaList.indexWhere((m) => m['id'] == mediaId);
+        if (mediaIndex != -1) {
+          widget.mediaList[mediaIndex]['likes'] = _currentMedia!['likes'];
+          widget.mediaList[mediaIndex]['is_liked'] = _currentMedia!['is_liked'];
+        }
+      }
     } catch (e) {
+      print('Media viewer like error: $e');
+      
+      // Rollback on error
+      setState(() {
+        _currentMedia!['is_liked'] = previousLikeState;
+        _currentMedia!['likes'] = previousLikesCount;
+      });
+      
+      if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Beğeni işlemi başarısız: $e'),
           backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 2),
         ),
       );
+      }
     }
   }
 
@@ -126,10 +160,26 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
         isLoading: false,
         onLoadComments: () {}, // Empty function
         onAddComment: (comment) {
-          // Update comment count
+          // ✅ Update comment count
           setState(() {
+            if (comment.isEmpty) {
+              // Yorum silindi
+              _currentMedia!['comments'] = (_currentMedia!['comments'] ?? 0) - 1;
+              if (_currentMedia!['comments'] < 0) _currentMedia!['comments'] = 0;
+            } else {
+              // Yorum eklendi
             _currentMedia!['comments'] = (_currentMedia!['comments'] ?? 0) + 1;
+            }
+            
+            // ✅ Widget'ın mediaList'ini de güncelle
+            final mediaIndex = widget.mediaList.indexWhere((m) => m['id'] == _currentMedia!['id']);
+            if (mediaIndex != -1) {
+              widget.mediaList[mediaIndex]['comments'] = _currentMedia!['comments'];
+            }
           });
+          
+          // ✅ Parent widget'a bildir
+          widget.onMediaUpdated?.call();
         },
       ),
     );
@@ -151,6 +201,15 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
           style: const TextStyle(color: Colors.white),
         ),
         centerTitle: true,
+        actions: [
+          // ✅ İndirme butonu (fotoğraf ve video için)
+          if (_currentMedia != null)
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.white),
+              onPressed: () => _downloadMedia(),
+              tooltip: 'İndir',
+            ),
+        ],
       ),
       body: Stack(
         children: [
@@ -174,10 +233,9 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
                     // Don't close modal on tap for images
                   },
                   child: Container(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.8,
-                      maxWidth: MediaQuery.of(context).size.width,
-                    ),
+                    // ✅ Orijinal boyutta göster - constraints kaldırıldı
+                    width: double.infinity,
+                    height: double.infinity,
                     child: isVideo
                         ? _buildVideoPlayer()
                         : _buildImageViewer(imageUrl),
@@ -366,9 +424,16 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
       );
     }
 
-    return RobustImageWidget(
-      imageUrl: imageUrl.startsWith('http') ? imageUrl : 'http://192.168.1.137/dijitalsalon/$imageUrl',
+    // ✅ Orijinal boyutta göster - tam ekran, zoom desteği
+    return InteractiveViewer(
+      minScale: 0.5,
+      maxScale: 4.0,
+      child: Center(
+        child: RobustImageWidget(
+      imageUrl: imageUrl.startsWith('http') ? imageUrl : 'https://dijitalsalon.cagapps.app/$imageUrl',
       fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 
@@ -385,5 +450,168 @@ class _MediaViewerModalState extends State<MediaViewerModal> {
       aspectRatio: _videoController!.value.aspectRatio,
       child: VideoPlayer(_videoController!),
     );
+  }
+  
+  Future<void> _downloadMedia() async {
+    if (_currentMedia == null) return;
+    
+    final mediaUrl = _currentMedia!['url'] ?? _currentMedia!['media_url'];
+    if (mediaUrl == null) return;
+    
+    final isVideo = _currentMedia!['type'] == 'video' || 
+                   mediaUrl.toLowerCase().endsWith('.mp4') ||
+                   mediaUrl.toLowerCase().endsWith('.mov') ||
+                   mediaUrl.toLowerCase().endsWith('.avi') ||
+                   mediaUrl.toLowerCase().endsWith('.mkv');
+    
+    try {
+      // ✅ İzin kontrolü - Android versiyonuna göre
+      bool hasPermission = false;
+      
+      if (Platform.isAndroid) {
+        // Android için önce photos/videos izinlerini dene, sonra storage
+        if (isVideo) {
+          // Video için önce videos, sonra photos, son olarak storage
+          var videosStatus = await Permission.videos.status;
+          if (!videosStatus.isGranted) {
+            videosStatus = await Permission.videos.request();
+          }
+          
+          if (videosStatus.isGranted) {
+            hasPermission = true;
+          } else {
+            // Videos izni yok, photos dene
+            var photosStatus = await Permission.photos.status;
+            if (!photosStatus.isGranted) {
+              photosStatus = await Permission.photos.request();
+            }
+            
+            if (photosStatus.isGranted) {
+              hasPermission = true;
+            } else {
+              // Photos izni de yok, storage dene
+              var storageStatus = await Permission.storage.status;
+              if (!storageStatus.isGranted) {
+                storageStatus = await Permission.storage.request();
+              }
+              hasPermission = storageStatus.isGranted;
+            }
+          }
+        } else {
+          // Fotoğraf için önce photos, sonra storage
+          var photosStatus = await Permission.photos.status;
+          if (!photosStatus.isGranted) {
+            photosStatus = await Permission.photos.request();
+          }
+          
+          if (photosStatus.isGranted) {
+            hasPermission = true;
+          } else {
+            // Photos izni yok, storage dene
+            var storageStatus = await Permission.storage.status;
+            if (!storageStatus.isGranted) {
+              storageStatus = await Permission.storage.request();
+            }
+            hasPermission = storageStatus.isGranted;
+          }
+        }
+      } else if (Platform.isIOS) {
+        // iOS için photos izni
+        var photosStatus = await Permission.photos.status;
+        if (!photosStatus.isGranted) {
+          photosStatus = await Permission.photos.request();
+        }
+        hasPermission = photosStatus.isGranted;
+      }
+      
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Galeri erişim izni gereklidir. Ayarlardan izin verin.'),
+              backgroundColor: AppColors.error,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('İndiriliyor...'),
+            backgroundColor: AppColors.info,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+      
+      // ✅ Dosyayı indir
+      final fullUrl = mediaUrl.startsWith('http') ? mediaUrl : 'https://dijitalsalon.cagapps.app/$mediaUrl';
+      final response = await http.get(Uri.parse(fullUrl));
+      
+      if (response.statusCode == 200) {
+        // ✅ Galeriye kaydet
+        Map<String, dynamic> result;
+        
+        if (isVideo) {
+          // ✅ Video için geçici dosya oluştur
+          final tempDir = await getTemporaryDirectory();
+          final fileName = 'digital_salon_${_currentMedia!['id']}_${DateTime.now().millisecondsSinceEpoch}.mp4';
+          final filePath = '${tempDir.path}/$fileName';
+          final file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+          
+          // ✅ Videoyu galeriye kaydet - gal paketi kullan (Android 13+ uyumlu)
+          try {
+            await Gal.putVideo(filePath);
+            result = {'isSuccess': true};
+          } catch (galError) {
+            // Fallback: gal paketi olmadıysa hata göster
+            print('Gal.putVideo error: $galError');
+            result = {'isSuccess': false, 'error': galError.toString()};
+          }
+        } else {
+          // ✅ Fotoğraf için direkt kaydet - gal paketi kullan (Android 13+ uyumlu)
+          try {
+            await Gal.putImageBytes(
+              response.bodyBytes,
+              name: 'digital_salon_${_currentMedia!['id']}_${DateTime.now().millisecondsSinceEpoch}',
+            );
+            result = {'isSuccess': true};
+          } catch (galError) {
+            // Fallback: gal paketi olmadıysa hata göster
+            print('Gal.putImageBytes error: $galError');
+            result = {'isSuccess': false, 'error': galError.toString()};
+          }
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['isSuccess'] == true 
+                  ? '${isVideo ? "Video" : "Fotoğraf"} galerinize kaydedildi' 
+                  : 'İndirme başarısız'),
+              backgroundColor: result['isSuccess'] == true ? AppColors.success : AppColors.error,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Dosya indirilemedi: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Download error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('İndirme başarısız: $e'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }

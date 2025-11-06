@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:digimobil_new/widgets/robust_image_widget.dart';
+import 'package:digimobil_new/widgets/comments_modal.dart';
 import 'package:digimobil_new/services/api_service.dart';
 import 'package:digimobil_new/models/event.dart';
 import 'package:digimobil_new/providers/auth_provider.dart';
@@ -38,6 +39,12 @@ class _StoryViewerModalState extends State<StoryViewerModal>
   bool _isPlaying = true;
   Timer? _timer;
   bool _isImageLoaded = false;
+  bool _isPausedByUser = false; // ✅ Kullanıcı tarafından durduruldu mu?
+  double _pausedProgressValue = 0.0; // ✅ Pause edildiğinde progress değeri
+  bool _isTappingCenter = false; // ✅ Orta kısma basıldı mı?
+  
+  // ✅ Video player için key (her story için unique)
+  GlobalKey<_StoryVideoPlayerState> _videoPlayerKey = GlobalKey<_StoryVideoPlayerState>();
   
   final ApiService _apiService = ApiService();
 
@@ -47,8 +54,8 @@ class _StoryViewerModalState extends State<StoryViewerModal>
     _currentStoryIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentStoryIndex);
     
-    // Progress controller will be created in _startProgress with correct duration
-    _startProgress();
+    // ✅ Progress controller medya yüklendiğinde oluşturulacak (onImageLoaded/onVideoLoaded callback'lerinde)
+    // İlk çağrıyı kaldırdık - medya hazır olunca otomatik başlayacak
   }
 
   @override
@@ -60,10 +67,33 @@ class _StoryViewerModalState extends State<StoryViewerModal>
   }
 
   void _startProgress() {
-    if (_isPlaying && _isImageLoaded) {
+    // ✅ Önce timer ve controller'ı temizle
+    _timer?.cancel();
+    _progressController?.dispose();
+    
+    // ✅ Sadece medya yüklendiğinde ve oynatılıyorsa başla
+    if (_isPlaying && !_isPausedByUser) {
       final currentStory = widget.stories[_currentStoryIndex];
-      final isVideo = currentStory['media_type'] == 'video' || currentStory['type'] == 'video';
-      final duration = isVideo ? 59 : 24; // Video: 59s, Photo: 24s
+      final mediaUrl = currentStory['url'] ?? currentStory['media_url'];
+      
+      // ✅ URL'ye bakarak video/resim ayırt et
+      final isVideo = mediaUrl != null && (
+        mediaUrl.toString().toLowerCase().endsWith('.mp4') ||
+        mediaUrl.toString().toLowerCase().endsWith('.mov') ||
+        mediaUrl.toString().toLowerCase().endsWith('.avi') ||
+        mediaUrl.toString().toLowerCase().endsWith('.mkv') ||
+        mediaUrl.toString().toLowerCase().endsWith('.webm')
+      );
+      
+      // ✅ Resim: 15 saniye, Video: video süresi (varsa) veya 59 saniye
+      int duration;
+      if (isVideo) {
+        duration = currentStory['video_duration'] ?? 59; // Video süresi veya default 59s
+      } else {
+        duration = 15; // Resim: 15 saniye
+      }
+      
+      print('⏱️ Starting progress - isVideo: $isVideo, duration: ${duration}s');
       
       _progressController = AnimationController(
         duration: Duration(seconds: duration),
@@ -75,9 +105,18 @@ class _StoryViewerModalState extends State<StoryViewerModal>
         end: 1.0,
       ).animate(_progressController!);
       
+      // ✅ Animation listener ekle - her frame'de setState çağır
+      _progressController!.addListener(() {
+        if (mounted) {
+          setState(() {}); // Progress bar güncellenmesi için
+        }
+      });
+      
       _progressController!.forward();
       _timer = Timer(Duration(seconds: duration), () {
-        _nextStory();
+        if (mounted && !_isPausedByUser) {
+          _nextStory();
+        }
       });
     }
   }
@@ -113,31 +152,36 @@ class _StoryViewerModalState extends State<StoryViewerModal>
   
   void _nextStory() {
     if (_currentStoryIndex < widget.stories.length - 1) {
+      // ✅ PageController'ın nextPage'i onPageChanged'i tetikleyecek
+      // Bu yüzden _currentStoryIndex'i burada güncellemiyoruz (çift güncelleme önleme)
       setState(() {
-        _currentStoryIndex++;
         _isImageLoaded = false; // Reset loading state
       });
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _resetProgress();
     } else {
-      Navigator.pop(context);
+      // ✅ Son hikayede, kapatma öncesi kısa gecikme ekle
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
     }
   }
 
   void _previousStory() {
     if (_currentStoryIndex > 0) {
+      // ✅ PageController'ın previousPage'i onPageChanged'i tetikleyecek
+      // Bu yüzden _currentStoryIndex'i burada güncellemiyoruz (çift güncelleme önleme)
       setState(() {
-        _currentStoryIndex--;
         _isImageLoaded = false; // Reset loading state
       });
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _resetProgress();
     } else {
       Navigator.pop(context);
     }
@@ -185,19 +229,61 @@ class _StoryViewerModalState extends State<StoryViewerModal>
       body: GestureDetector(
         onTapDown: (details) {
           final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
           final tapPosition = details.globalPosition.dx;
+          final tapPositionY = details.globalPosition.dy;
           
-          if (tapPosition < screenWidth / 2) {
-            _previousStory();
-          } else {
-            _nextStory();
+          // ✅ Üst kısımda butonlar var (close, 3-dot menu), oraya basılmışsa işlem yapma
+          if (tapPositionY < 100) {
+            _isTappingCenter = false;
+            return; // Üst butonlara basılmış
+          }
+          
+          // ✅ Alt kısımda butonlar var, oraya basılmışsa işlem yapma
+          if (tapPositionY > screenHeight * 0.85) {
+            _isTappingCenter = false;
+            return; // Yorum/beğeni butonlarına basılmış
+          }
+          
+          // ✅ Ekrana dokunulduğunda pause (sol/sağ kontrolü onTap'te)
+          _isTappingCenter = true;
+          _pauseStory();
+        },
+        onTapUp: (details) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          final tapPosition = details.globalPosition.dx;
+          final tapPositionY = details.globalPosition.dy;
+          
+          // ✅ Parmağı bıraktığında resume
+          if (_isPausedByUser && _isTappingCenter) {
+            _isTappingCenter = false;
+            _resumeStory();
+            
+            // ✅ Hızlı tap ise (basılı tutmamış) sol/sağ kontrolü yap
+            // (Basılı tutma süresi 200ms'den az ise)
+            final leftThird = screenWidth / 3;
+            final rightThird = screenWidth * 2 / 3;
+            
+            if (tapPositionY < 100 || tapPositionY > screenHeight * 0.85) {
+              return; // Butonlara basılmışsa işlem yapma
+            }
+            
+            if (tapPosition < leftThird) {
+              // Sol taraf - önceki hikaye (hızlı tap)
+              _previousStory();
+            } else if (tapPosition > rightThird) {
+              // Sağ taraf - sonraki hikaye (hızlı tap)
+              _nextStory();
+            }
           }
         },
-        onLongPressStart: (_) {
-          _togglePlayPause();
-        },
-        onLongPressEnd: (_) {
-          _togglePlayPause();
+        onTapCancel: () {
+          // ✅ Tap iptal edildiğinde de resume et
+          if (_isPausedByUser && _isTappingCenter) {
+            _isTappingCenter = false;
+            _resumeStory();
+          }
         },
         child: Stack(
           children: [
@@ -208,6 +294,8 @@ class _StoryViewerModalState extends State<StoryViewerModal>
                 setState(() {
                   _currentStoryIndex = index;
                   _isImageLoaded = false; // Reset loading state
+                  // ✅ Her story için yeni key oluştur (video player'ı reset etmek için)
+                  _videoPlayerKey = GlobalKey<_StoryVideoPlayerState>();
                 });
                 _resetProgress();
               },
@@ -346,15 +434,23 @@ class _StoryViewerModalState extends State<StoryViewerModal>
   }
 
   Widget _buildStoryContent(Map<String, dynamic> story) {
-    final isVideo = story['media_type'] == 'video' || story['type'] == 'video';
     final mediaUrl = story['url'] ?? story['media_url'];
+    
+    // ✅ URL'ye bakarak video/resim ayırt et
+    final isVideo = mediaUrl != null && (
+      mediaUrl.toString().toLowerCase().endsWith('.mp4') ||
+      mediaUrl.toString().toLowerCase().endsWith('.mov') ||
+      mediaUrl.toString().toLowerCase().endsWith('.avi') ||
+      mediaUrl.toString().toLowerCase().endsWith('.mkv') ||
+      mediaUrl.toString().toLowerCase().endsWith('.webm')
+    );
     
     return Container(
       width: double.infinity,
       height: double.infinity,
       child: mediaUrl != null
           ? isVideo
-              ? _buildVideoContent(mediaUrl)
+              ? _buildVideoContent(mediaUrl, story)
               : _buildImageContent(mediaUrl)
           : _buildPlaceholderContent(),
     );
@@ -393,15 +489,26 @@ class _StoryViewerModalState extends State<StoryViewerModal>
     );
   }
 
-  Widget _buildVideoContent(String videoUrl) {
+  Widget _buildVideoContent(String videoUrl, Map<String, dynamic> story) {
     return StoryVideoPlayer(
+      key: _videoPlayerKey, // ✅ Key ile video player'a erişim
       url: videoUrl,
-      onVideoLoaded: () {
+      onVideoLoaded: (Duration? duration) {
         if (!_isImageLoaded) {
           setState(() {
             _isImageLoaded = true;
           });
+          // ✅ Video süresini story'ye kaydet
+          if (duration != null) {
+            story['video_duration'] = duration.inSeconds;
+          }
           _startProgress();
+        }
+      },
+      onVideoCompleted: () {
+        // ✅ Video bittiğinde otomatik sonraki hikayeye geç
+        if (!_isPausedByUser) {
+          _nextStory();
         }
       },
     );
@@ -510,7 +617,10 @@ class _StoryViewerModalState extends State<StoryViewerModal>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Like button - Like old theme style
-          Container(
+          GestureDetector(
+            onTap: () => _toggleStoryLike(story),
+            behavior: HitTestBehavior.opaque, // ✅ Event propagation'ı durdur
+            child: Container(
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
@@ -541,6 +651,7 @@ class _StoryViewerModalState extends State<StoryViewerModal>
                         ),
                       ),
                     ],
+                    ),
                   ),
                 ),
               ),
@@ -548,7 +659,10 @@ class _StoryViewerModalState extends State<StoryViewerModal>
           ),
           const SizedBox(width: 16),
           // Comment button - Like old theme style
-          Container(
+          GestureDetector(
+            onTap: () => _showStoryComments(story),
+            behavior: HitTestBehavior.opaque, // ✅ Event propagation'ı durdur
+            child: Container(
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
@@ -579,6 +693,7 @@ class _StoryViewerModalState extends State<StoryViewerModal>
                         ),
                       ),
                     ],
+                    ),
                   ),
                 ),
               ),
@@ -618,7 +733,8 @@ class _StoryViewerModalState extends State<StoryViewerModal>
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              navigator.pop();
               
               try {
                 final success = await _apiService.editStory(
@@ -627,27 +743,33 @@ class _StoryViewerModalState extends State<StoryViewerModal>
                 );
                 
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Hikaye başarıyla güncellendi'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  
-                  // Update story in local state
-                  setState(() {
-                    story['aciklama'] = captionController.text;
-                  });
+                  // ✅ Widget hala mounted ise işlem yap
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Hikaye başarıyla güncellendi'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                    
+                    // Update story in local state
+                    setState(() {
+                      story['aciklama'] = captionController.text;
+                    });
+                  }
                 } else {
                   throw Exception('Failed to update story');
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Hikaye güncellenirken hata: $e'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+                // ✅ Widget hala mounted ise hata göster
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Hikaye güncellenirken hata: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Kaydet'),
@@ -670,31 +792,38 @@ class _StoryViewerModalState extends State<StoryViewerModal>
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              navigator.pop();
               
               try {
                 final result = await _apiService.deleteStory(story['id']);
                 
                 if (result['success'] == true) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Hikaye başarıyla silindi'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  
-                  // Close story viewer and notify parent
-                  Navigator.pop(context, 'story_deleted');
+                  // ✅ Widget hala mounted ise işlem yap
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Hikaye başarıyla silindi'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                    
+                    // Close story viewer and notify parent
+                    Navigator.pop(context, 'story_deleted');
+                  }
                 } else {
                   throw Exception(result['error'] ?? 'Failed to delete story');
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Hikaye silinirken hata: $e'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
+                // ✅ Widget hala mounted ise hata göster
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Hikaye silinirken hata: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Sil', style: TextStyle(color: Colors.red)),
@@ -704,22 +833,181 @@ class _StoryViewerModalState extends State<StoryViewerModal>
     );
   }
 
-  void _toggleStoryLike(Map<String, dynamic> story) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hikaye beğenme özelliği yakında eklenecek'),
-        backgroundColor: AppColors.info,
-      ),
-    );
+  Future<void> _toggleStoryLike(Map<String, dynamic> story) async {
+    final storyId = story['id'];
+    if (storyId == null) return;
+    
+    // ✅ Değişkenleri try bloğunun dışında tanımla
+    final previousLikeState = story['is_liked'] == true;
+    final previousLikesCount = story['likes'] ?? 0;
+    
+    try {
+      // Optimistic update
+      setState(() {
+        story['is_liked'] = !previousLikeState;
+        story['likes'] = previousLikesCount + (previousLikeState ? -1 : 1);
+      });
+      
+      // ✅ Hikayeler de medya tablosunda saklanıyor, medya ID'si ile beğenilebilir
+      final mediaId = story['media_id'] ?? story['id'];
+      
+      // Call API to like/unlike
+      final result = await _apiService.toggleLike(mediaId, previousLikeState);
+      
+      // ✅ API'den gelen güncel beğeni sayısını kullan
+      if (result['likes_count'] != null) {
+        setState(() {
+          story['likes'] = result['likes_count'] as int;
+          story['is_liked'] = result['is_liked'] as bool? ?? story['is_liked'];
+        });
+      }
+      
+    } catch (e) {
+      print('Story like error: $e');
+      // Rollback on error
+      setState(() {
+        story['is_liked'] = previousLikeState;
+        story['likes'] = previousLikesCount;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Beğeni işlemi başarısız: $e'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _showStoryComments(Map<String, dynamic> story) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hikaye yorumları özelliği yakında eklenecek'),
-        backgroundColor: AppColors.info,
+    final storyId = story['id'];
+    if (storyId == null) return;
+    
+    // ✅ Hikayeler de medya tablosunda, medya ID'si ile yorum yapılabilir
+    final mediaId = story['media_id'] ?? story['id'];
+    
+    // ✅ Hikayeyi pause et
+    _pauseStory();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentsModal(
+        mediaId: mediaId,
+        comments: [], // Empty list, will be loaded by the modal
+        isLoading: false,
+        onLoadComments: () {}, // Empty function
+        onAddComment: (comment) {
+          // ✅ Yorum sayısını güncelle
+          setState(() {
+            story['comments'] = (story['comments'] ?? 0) + 1;
+          });
+        },
+        event: widget.event,
       ),
-    );
+    ).then((_) {
+      // ✅ Modal kapandığında resume et
+      if (_isPausedByUser) {
+        _resumeStory();
+      }
+    });
+  }
+  
+  void _pauseStory() {
+    if (!_isPausedByUser) {
+      // ✅ Mevcut progress değerini kaydet
+      if (_progressController != null && _progressController!.isAnimating) {
+        _pausedProgressValue = _progressController!.value;
+        print('⏸️ Pausing story - Current progress: $_pausedProgressValue');
+      } else {
+        // ✅ Eğer controller yoksa veya animasyon durmuşsa, mevcut değeri al
+        _pausedProgressValue = _progressController?.value ?? 0.0;
+        print('⏸️ Pausing story - No active animation, using value: $_pausedProgressValue');
+      }
+      
+      setState(() {
+        _isPausedByUser = true;
+        _isPlaying = false;
+      });
+      
+      // ✅ Timer ve progress'i durdur
+      _timer?.cancel();
+      if (_progressController != null && _progressController!.isAnimating) {
+        _progressController!.stop();
+      }
+      
+      // ✅ Video'yu durdur
+      _videoPlayerKey.currentState?.pauseVideo();
+      
+      print('⏸️ Story paused at progress: $_pausedProgressValue');
+    } else {
+      print('⚠️ Pause called but story already paused');
+    }
+  }
+  
+  void _resumeStory() {
+    if (_isPausedByUser) {
+      setState(() {
+        _isPausedByUser = false;
+        _isPlaying = true;
+      });
+      
+      // ✅ Kaldığı yerden devam et
+      final currentStory = widget.stories[_currentStoryIndex];
+      final isVideo = currentStory['media_type'] == 'video';
+      final totalDuration = isVideo ? 59 : 24;
+      final remainingSeconds = (totalDuration * (1.0 - _pausedProgressValue)).round();
+      
+      print('▶️ Resuming story - Progress: $_pausedProgressValue, Remaining: ${remainingSeconds}s, Total: ${totalDuration}s');
+      
+      if (remainingSeconds > 0 && remainingSeconds <= totalDuration) {
+        // ✅ Timer'ı iptal et (zaten iptal edilmiş olmalı ama emin olmak için)
+        _timer?.cancel();
+        
+        // ✅ Mevcut controller'ı dispose et ve yenisini oluştur
+        _progressController?.dispose();
+        _progressController = null;
+        
+        _progressController = AnimationController(
+          duration: Duration(seconds: totalDuration),
+          vsync: this,
+        );
+        
+        _progressAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(_progressController!);
+        
+        // ✅ Kaldığı yerden başlat (0.0 ile 1.0 arasında olmalı)
+        final startValue = _pausedProgressValue.clamp(0.0, 1.0);
+        _progressController!.value = startValue;
+        
+        // ✅ İlerlemeyi devam ettir
+        _progressController!.forward();
+        
+        // ✅ Kalan süre için timer oluştur
+        _timer = Timer(Duration(seconds: remainingSeconds), () {
+          if (mounted && !_isPausedByUser) {
+            _nextStory();
+          }
+        });
+        
+        print('✅ Story resumed successfully - Controller value: ${_progressController!.value}, Timer set: ${remainingSeconds}s');
+        
+        // ✅ Video'yu devam ettir
+        _videoPlayerKey.currentState?.playVideo();
+      } else {
+        // ✅ Süre dolmuşsa veya geçersizse bir sonraki hikayeye geç
+        print('⚠️ Remaining seconds invalid ($remainingSeconds), moving to next story');
+        _nextStory();
+      }
+    } else {
+      print('⚠️ Resume called but story is not paused by user');
+    }
   }
 
   String _formatTime(String? timeString) {
@@ -747,9 +1035,15 @@ class _StoryViewerModalState extends State<StoryViewerModal>
 
 class StoryVideoPlayer extends StatefulWidget {
   final String url;
-  final VoidCallback? onVideoLoaded;
+  final Function(Duration?)? onVideoLoaded;
+  final VoidCallback? onVideoCompleted;
 
-  const StoryVideoPlayer({super.key, required this.url, this.onVideoLoaded});
+  const StoryVideoPlayer({
+    super.key,
+    required this.url,
+    this.onVideoLoaded,
+    this.onVideoCompleted,
+  });
 
   @override
   State<StoryVideoPlayer> createState() => _StoryVideoPlayerState();
@@ -770,49 +1064,33 @@ class _StoryVideoPlayerState extends State<StoryVideoPlayer> {
     try {
       print('Story Video URL: ${widget.url}');
       
-      // Video dosyasını local olarak indir
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'story_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final localFile = File('${tempDir.path}/$fileName');
+      // ✅ Direkt URL'den streaming yap (indirme yok, daha hızlı)
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: true,
+          allowBackgroundPlayback: false,
+        ),
+      );
       
-      print('Downloading story video to: ${localFile.path}');
+      // Event listener ekle
+      _controller!.addListener(_videoListener);
       
-      // Video dosyasını indir (retry mekanizması ile)
-      final response = await _downloadWithRetry(widget.url, maxRetries: 3);
-      if (response.statusCode == 200) {
-        await localFile.writeAsBytes(response.bodyBytes);
+      // Initialize
+      await _controller!.initialize();
+      
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
         
-        print('Story video downloaded successfully: ${localFile.path}');
+        // Otomatik oynatma başlat
+        _controller!.play();
+        // ✅ Video hikayeler tek seferlik oynatılmalı (loop yok)
+        _controller!.setLooping(false);
         
-        // Local dosyayı oynat
-        _controller = VideoPlayerController.file(
-          localFile,
-          videoPlayerOptions: VideoPlayerOptions(
-            mixWithOthers: true,
-            allowBackgroundPlayback: false,
-          ),
-        );
-        
-        // Event listener ekle
-        _controller!.addListener(_videoListener);
-        
-        // Initialize
-        await _controller!.initialize();
-        
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-          
-          // Otomatik oynatma başlat
-          _controller!.play();
-          _controller!.setLooping(true);
-          
-          // Call onVideoLoaded callback
-          widget.onVideoLoaded?.call();
-        }
-      } else {
-        throw Exception('Failed to download story video: ${response.statusCode}');
+        // ✅ Call onVideoLoaded callback with video duration
+        widget.onVideoLoaded?.call(_controller!.value.duration);
       }
     } catch (e) {
       print('Story video initialization error: $e');
@@ -878,6 +1156,28 @@ class _StoryVideoPlayerState extends State<StoryVideoPlayer> {
           });
         }
       }
+      
+      // ✅ Video bittiğinde callback çağır
+      if (_controller!.value.position >= _controller!.value.duration && 
+          _controller!.value.duration.inSeconds > 0) {
+        widget.onVideoCompleted?.call();
+      }
+    }
+  }
+
+  // ✅ Pause video from parent
+  void pauseVideo() {
+    if (_controller != null && _controller!.value.isPlaying) {
+      _controller!.pause();
+      print('⏸️ Video paused');
+    }
+  }
+
+  // ✅ Resume video from parent
+  void playVideo() {
+    if (_controller != null && !_controller!.value.isPlaying) {
+      _controller!.play();
+      print('▶️ Video playing');
     }
   }
 
