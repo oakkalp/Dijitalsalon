@@ -1,5 +1,12 @@
 ![App Icon](mobilapp/assets/images/app_icon.png)
-![Flutter UI](mobilapp/flutter_01.png)
+![Flutter UI](digisalon/01.png)
+![Flutter UI](digisalon/02.png)
+![Flutter UI](digisalon/03.png)
+![Flutter UI](digisalon/04.png)
+![Flutter UI](digisalon/05.png)
+![Flutter UI](digisalon/06.png)
+![Flutter UI](digisalon/10.png)
+
 # Dijitalsalon - Wedding Event Management System
 
 A comprehensive wedding event management system with Flutter mobile app and PHP web backend.
