@@ -1,0 +1,91 @@
+Key pair	 BD1AypqZLvAawM5XyoHCJ_9WCI7JZ1gMjDi9YmA4YxcYJd1YECFK8K0soq0kFuxATIB960OaEICE-EdFn7LTN-k
+
+Email
+
+firebase-adminsdk-fbsvc@dijital-salon.iam.gserviceaccount.com
+
+Unique ID
+
+116221288752838886007
+
+
+Key
+Creation date
+Expiration date
+ Active	3d72ad092cabef93471151b09df073cb8d972c0c	Oct 30, 2025	Jan 1, 10000		
+
+google-services.json dosyasını oku 
+
+
+oot-level (project-level) Gradle file (<project>/build.gradle.kts):
+plugins {
+  // ...
+
+  // Add the dependency for the Google services Gradle plugin
+  id("com.google.gms.google-services") version "4.4.4" apply false
+
+}
+Then, in your module (app-level) build.gradle.kts file, add both the google-services plugin and any Firebase SDKs that you want to use in your app:
+
+Module (app-level) Gradle file (<project>/<app-module>/build.gradle.kts):
+plugins {
+  id("com.android.application")
+
+  // Add the Google services Gradle plugin
+  id("com.google.gms.google-services")
+
+  ...
+}
+
+dependencies {
+  // Import the Firebase BoM
+  implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+
+
+  // TODO: Add the dependencies for Firebase products you want to use
+  // When using the BoM, don't specify versions in Firebase dependencies
+  implementation("com.google.firebase:firebase-analytics")
+
+
+  // Add the dependencies for any other desired Firebase products
+  // https://firebase.google.com/docs/android/setup#available-libraries
+}
+
+App ID 
+1:839706849375:android:bd794e5e6b0d84a166ebea
+App nickname
+DijitalSalon
+Package name
+com.cagapps.dijitalsalon
+SHA certificate fingerprints 
+Type 
+
+
+Bu anahtarı uygulamanızda key=API_KEY parametresiyle geçirerek kullanın.
+
+API anahtarınız
+AIzaSyCq0bSFvHPnU-xN5dqWZevYOuMnrVF1Z_E
+App ID 
+1:839706849375:android:bd794e5e6b0d84a166ebea
+App nickname
+DijitalSalon
+Package name
+com.cagapps.dijitalsalon
+SHA certificate fingerprints 
+Type 
+Actions
+
+
+Web Push certificates
+Firebase Cloud Messaging can use Application Identity key pairs to connect with external push services. Learn more
+Key pair	Date added	Status	Actions
+BD1AypqZLvAawM5XyoHCJ_9WCI7JZ1gMjDi9YmA4YxcYJd1YECFK8K0soq0kFuxATIB960OaEICE-EdFn7LTN-k	Oct 30, 2025		
+
+temci kimliğine her zaman Google Auth Platformu altındaki İstemciler sekmesinden erişilebilir.
+
+OAuth erişimi test kullanıcılarıyla sınırlıdır OAuth onay ekranınızda listelenmiştir
+İstemci Kimliği
+1099007385778-o6unkbo0ab7c7c4pan28boh4nerimfim.apps.googleusercontent.com
+
+client_secret_1099007385778-o6unkbo0ab7c7c4pan28boh4nerimfim.apps.googleusercontent.com.json   
+

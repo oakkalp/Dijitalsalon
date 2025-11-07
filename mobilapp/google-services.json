@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "839706849375",
+    "project_id": "dijital-salon",
+    "storage_bucket": "dijital-salon.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:839706849375:android:bd794e5e6b0d84a166ebea",
+        "android_client_info": {
+          "package_name": "com.cagapps.dijitalsalon"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAreq7VR7HIvSAqJhTpZyIlIhzDOe0_Kqo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
